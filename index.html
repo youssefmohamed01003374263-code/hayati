@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Irrigation Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #1e293b;
+      --border: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-green: #22c55e;
+      --accent-yellow: #eab308;
+      --accent-red: #ef4444;
+      --accent-cyan: #06b6d4;
+      --accent-orange: #f97316;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header h1 i { color: var(--accent-green); }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-red);
+    }
+
+    .status-dot.connected { background: var(--accent-green); animation: pulse 2s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Main Layout */
+    .main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Sensor Cards Row */
+    .sensor-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .sensor-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .sensor-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-blue);
+    }
+
+    .sensor-card .icon {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+    }
+
+    .sensor-card .label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .sensor-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .sensor-card .unit {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .sensor-card .bar-container {
+      margin-top: 12px;
+      background: #0f172a;
+      border-radius: 6px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .sensor-card .bar {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.5s ease;
+    }
+
+    /* Valve Control Panel */
+    .control-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .control-panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .btn:active { transform: translateY(0); }
+    .btn-open { background: var(--accent-green); color: #fff; }
+    .btn-close { background: var(--accent-red); color: #fff; }
+    .btn-auto { background: var(--accent-blue); color: #fff; }
+    .btn-disable { background: #475569; color: #fff; }
+
+    .valve-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #0f172a;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .valve-indicator {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      transition: background 0.3s;
+    }
+
+    .valve-indicator.open { background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green); }
+    .valve-indicator.closed { background: var(--accent-red); }
+
+    /* Charts Section */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .chart-card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    .chart-card canvas { width: 100% !important; }
+
+    /* Thresholds Section */
+    .thresholds-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .thresholds-panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .threshold-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .threshold-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .threshold-item label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .threshold-item input, .threshold-item select {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .threshold-item input:focus, .threshold-item select:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .btn-save-thresholds {
+      margin-top: 16px;
+      background: var(--accent-blue);
+      color: #fff;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-save-thresholds:hover { filter: brightness(1.1); }
+
+    /* Logs Section */
+    .logs-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .logs-panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .log-list {
+      max-height: 250px;
+      overflow-y: auto;
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .log-entry {
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 0;
+    }
+
+    .log-entry:last-child { border-bottom: none; }
+    .log-entry .log-time { color: var(--accent-cyan); }
+    .log-entry .log-msg { color: var(--text-primary); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sensor-cards { grid-template-columns: 1fr 1fr; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 1.1rem; }
+      .main { padding: 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .sensor-cards { grid-template-columns: 1fr; }
+      .control-buttons { flex-direction: column; }
+    }
+
+    /* Toast notifications */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #fff;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: var(--accent-green); }
+    .toast.error { background: var(--accent-red); }
+    .toast.info { background: var(--accent-blue); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1><i class="fas fa-seedling"></i> Smart Irrigation Dashboard</h1>
+    <div class="connection-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Sensor Cards -->
+    <div class="sensor-cards">
+      <div class="sensor-card">
+        <div class="icon" style="color: var(--accent-red)"><i class="fas fa-thermometer-half"></i></div>
+        <div class="label">Temperature</div>
+        <div class="value" id="tempValue">--<span class="unit"> °C</span></div>
+        <div class="bar-container"><div class="bar" id="tempBar" style="width: 0%; background: var(--accent-red);"></div></div>
+      </div>
+      <div class="sensor-card">
+        <div class="icon" style="color: var(--accent-blue)"><i class="fas fa-tint"></i></div>
+        <div class="label">Humidity</div>
+        <div class="value" id="humValue">--<span class="unit"> %</span></div>
+        <div class="bar-container"><div class="bar" id="humBar" style="width: 0%; background: var(--accent-blue);"></div></div>
+      </div>
+      <div class="sensor-card">
+        <div class="icon" style="color: var(--accent-orange)"><i class="fas fa-water"></i></div>
+        <div class="label">Soil Moisture</div>
+        <div class="value" id="soilValue">--<span class="unit"> %</span></div>
+        <div class="bar-container"><div class="bar" id="soilBar" style="width: 0%; background: var(--accent-orange);"></div></div>
+      </div>
+      <div class="sensor-card">
+        <div class="icon" style="color: var(--accent-yellow)"><i class="fas fa-sun"></i></div>
+        <div class="label">Light Level</div>
+        <div class="value" id="lightValue">--<span class="unit"> %</span></div>
+        <div class="bar-container"><div class="bar" id="lightBar" style="width: 0%; background: var(--accent-yellow);"></div></div>
+      </div>
+      <div class="sensor-card">
+        <div class="icon" style="color: var(--accent-green)"><i class="fas fa-faucet"></i></div>
+        <div class="label">Valve Status</div>
+        <div class="value" id="valveValue" style="font-size: 1.4rem;">--</div>
+      </div>
+    </div>
+
+    <!-- Valve Control -->
+    <div class="control-panel">
+      <h2><i class="fas fa-sliders-h"></i> Valve Control</h2>
+      <div class="control-buttons">
+        <button class="btn btn-open" onclick="sendCommand('open')"><i class="fas fa-play"></i> Open Valve</button>
+        <button class="btn btn-close" onclick="sendCommand('close')"><i class="fas fa-stop"></i> Close Valve</button>
+        <button class="btn btn-auto" onclick="sendCommand('auto')"><i class="fas fa-robot"></i> Auto Mode</button>
+        <button class="btn btn-disable" onclick="sendCommand('disable')"><i class="fas fa-power-off"></i> Disable System</button>
+      </div>
+      <div class="valve-status">
+        <div class="valve-indicator closed" id="valveIndicator"></div>
+        <span id="valveDetail">Valve is closed | Mode: Automatic</span>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3><i class="fas fa-chart-line"></i> Soil Moisture (24h)</h3>
+        <canvas id="soilChart" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fas fa-chart-line"></i> Temperature & Humidity (24h)</h3>
+        <canvas id="tempHumChart" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Thresholds -->
+    <div class="thresholds-panel">
+      <h2><i class="fas fa-cog"></i> Irrigation Thresholds</h2>
+      <div class="threshold-grid">
+        <div class="threshold-item">
+          <label>Soil Moisture Min (%)</label>
+          <input type="number" id="thrSoilMin" value="30" min="0" max="100">
+        </div>
+        <div class="threshold-item">
+          <label>Soil Moisture Max (%)</label>
+          <input type="number" id="thrSoilMax" value="70" min="0" max="100">
+        </div>
+        <div class="threshold-item">
+          <label>Max Temperature (°C)</label>
+          <input type="number" id="thrTempMax" value="40" min="0" max="60">
+        </div>
+        <div class="threshold-item">
+          <label>Min Temperature (°C)</label>
+          <input type="number" id="thrTempMin" value="5" min="-10" max="40">
+        </div>
+        <div class="threshold-item">
+          <label>Light Threshold (%)</label>
+          <input type="number" id="thrLight" value="50" min="0" max="100">
+        </div>
+        <div class="threshold-item">
+          <label>Water at Night</label>
+          <select id="thrNight">
+            <option value="true" selected>Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="threshold-item">
+          <label>Max Watering Duration (sec)</label>
+          <input type="number" id="thrDuration" value="300" min="10" max="3600">
+        </div>
+        <div class="threshold-item">
+          <label>Cooldown Period (min)</label>
+          <input type="number" id="thrCooldown" value="30" min="1" max="1440">
+        </div>
+      </div>
+      <button class="btn-save-thresholds" onclick="saveThresholds()"><i class="fas fa-save"></i> Save Thresholds</button>
+    </div>
+
+    <!-- Logs -->
+    <div class="logs-panel">
+      <h2><i class="fas fa-list-alt"></i> System Logs</h2>
+      <div class="log-list" id="logList">
+        <div class="log-entry"><span class="log-msg">Waiting for data...</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ==================== CONFIGURATION ====================
+    const API_BASE = window.location.origin;
+    const WS_URL = `ws://${window.location.host}`;
+
+    // ==================== WEBSOCKET ====================
+    let ws = null;
+    let reconnectInterval = null;
+
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        document.getElementById('statusDot').classList.add('connected');
+        document.getElementById('statusText').textContent = 'Connected';
+        if (reconnectInterval) {
+          clearInterval(reconnectInterval);
+          reconnectInterval = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleMessage(msg);
+        } catch (e) {
+          console.error('WS parse error:', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        document.getElementById('statusDot').classList.remove('connected');
+        document.getElementById('statusText').textContent = 'Disconnected';
+        if (!reconnectInterval) {
+          reconnectInterval = setInterval(connectWebSocket, 5000);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        ws.close();
+      };
+    }
+
+    // ==================== MESSAGE HANDLING ====================
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'sensor_data':
+          updateSensorDisplay(msg.data);
+          break;
+        case 'valve_status':
+          updateValveDisplay(msg.data);
+          break;
+        case 'log':
+          addLogEntry(msg.data);
+          break;
+        case 'system_status':
+          showToast(`Device ${msg.data.device_id} is ${msg.data.status}`, 'info');
+          break;
+      }
+    }
+
+    // ==================== UI UPDATES ====================
+    function updateSensorDisplay(data) {
+      if (data.temperature !== undefined) {
+        document.getElementById('tempValue').innerHTML = `${data.temperature.toFixed(1)}<span class="unit"> °C</span>`;
+        document.getElementById('tempBar').style.width = `${Math.min(data.temperature / 50 * 100, 100)}%`;
+      }
+      if (data.humidity !== undefined) {
+        document.getElementById('humValue').innerHTML = `${data.humidity.toFixed(1)}<span class="unit"> %</span>`;
+        document.getElementById('humBar').style.width = `${data.humidity}%`;
+      }
+      if (data.soil_moisture !== undefined) {
+        document.getElementById('soilValue').innerHTML = `${data.soil_moisture.toFixed(1)}<span class="unit"> %</span>`;
+        document.getElementById('soilBar').style.width = `${data.soil_moisture}%`;
+
+        // Color based on threshold
+        const bar = document.getElementById('soilBar');
+        if (data.soil_moisture < 30) bar.style.background = 'var(--accent-red)';
+        else if (data.soil_moisture < 60) bar.style.background = 'var(--accent-orange)';
+        else bar.style.background = 'var(--accent-green)';
+      }
+      if (data.light_level !== undefined) {
+        document.getElementById('lightValue').innerHTML = `${data.light_level}<span class="unit"> %</span>`;
+        document.getElementById('lightBar').style.width = `${data.light_level}%`;
+      }
+      if (data.valve_open !== undefined) {
+        const valveEl = document.getElementById('valveValue');
+        valveEl.textContent = data.valve_open ? 'OPEN' : 'CLOSED';
+        valveEl.style.color = data.valve_open ? 'var(--accent-green)' : 'var(--accent-red)';
+      }
+    }
+
+    function updateValveDisplay(data) {
+      const indicator = document.getElementById('valveIndicator');
+      const detail = document.getElementById('valveDetail');
+
+      if (data.valve_open) {
+        indicator.className = 'valve-indicator open';
+      } else {
+        indicator.className = 'valve-indicator closed';
+      }
+
+      let mode = data.manual_override ? 'Manual' : 'Automatic';
+      let status = data.valve_open ? 'Open' : 'Closed';
+      let enabled = data.system_enabled ? '' : ' | System Disabled';
+      detail.textContent = `Valve is ${status} | Mode: ${mode}${enabled}`;
+
+      if (data.watering_elapsed_sec) {
+        const mins = Math.floor(data.watering_elapsed_sec / 60);
+        const secs = data.watering_elapsed_sec % 60;
+        detail.textContent += ` | Watering: ${mins}m ${secs}s`;
+      }
+    }
+
+    function addLogEntry(data) {
+      const logList = document.getElementById('logList');
+      const time = data.server_timestamp
+        ? new Date(data.server_timestamp).toLocaleTimeString()
+        : new Date().toLocaleTimeString();
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-msg">${data.message}</span>`;
+
+      // Remove "Waiting for data" placeholder
+      if (logList.children.length === 1 && logList.children[0].textContent.includes('Waiting')) {
+        logList.innerHTML = '';
+      }
+
+      logList.insertBefore(entry, logList.firstChild);
+
+      // Keep only last 100 entries
+      while (logList.children.length > 100) {
+        logList.removeChild(logList.lastChild);
+      }
+    }
+
+    // ==================== API CALLS ====================
+    async function sendCommand(command) {
+      try {
+        const res = await fetch(`${API_BASE}/api/valve/command`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Command "${command}" sent`, 'success');
+        } else {
+          showToast(`Error: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast('Failed to send command', 'error');
+      }
+    }
+
+    async function saveThresholds() {
+      const thresholds = {
+        soil_moisture_min: parseFloat(document.getElementById('thrSoilMin').value),
+        soil_moisture_max: parseFloat(document.getElementById('thrSoilMax').value),
+        temperature_max: parseFloat(document.getElementById('thrTempMax').value),
+        temperature_min: parseFloat(document.getElementById('thrTempMin').value),
+        light_threshold: parseInt(document.getElementById('thrLight').value),
+        water_at_night: document.getElementById('thrNight').value === 'true',
+        watering_duration: parseInt(document.getElementById('thrDuration').value) * 1000,
+        cooldown_period: parseInt(document.getElementById('thrCooldown').value) * 60000,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/thresholds`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(thresholds),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Thresholds saved and sent to device', 'success');
+        }
+      } catch (err) {
+        showToast('Failed to save thresholds', 'error');
+      }
+    }
+
+    // ==================== CHARTS ====================
+    let soilChart = null;
+    let tempHumChart = null;
+
+    async function loadCharts() {
+      try {
+        const res = await fetch(`${API_BASE}/api/history/hourly?hours=24`);
+        const result = await res.json();
+        if (!result.success || !result.data.length) return;
+
+        const labels = result.data.map(d => {
+          const date = new Date(d.hour);
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+
+        const chartDefaults = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8' } } },
+          scales: {
+            x: { ticks: { color: '#64748b', maxTicksLimit: 12 }, grid: { color: '#1e293b' } },
+            y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
+          },
+        };
+
+        // Soil moisture chart
+        const soilCtx = document.getElementById('soilChart').getContext('2d');
+        if (soilChart) soilChart.destroy();
+        soilChart = new Chart(soilCtx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Soil Moisture %',
+              data: result.data.map(d => d.avg_soil_moisture),
+              borderColor: '#f97316',
+              backgroundColor: 'rgba(249,115,22,0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2,
+            }],
+          },
+          options: chartDefaults,
+        });
+
+        // Temp & Humidity chart
+        const thCtx = document.getElementById('tempHumChart').getContext('2d');
+        if (tempHumChart) tempHumChart.destroy();
+        tempHumChart = new Chart(thCtx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Temperature °C',
+                data: result.data.map(d => d.avg_temperature),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239,68,68,0.1)',
+                fill: false,
+                tension: 0.3,
+                pointRadius: 2,
+              },
+              {
+                label: 'Humidity %',
+                data: result.data.map(d => d.avg_humidity),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.1)',
+                fill: false,
+                tension: 0.3,
+                pointRadius: 2,
+              },
+            ],
+          },
+          options: chartDefaults,
+        });
+      } catch (err) {
+        console.error('Failed to load charts:', err);
+      }
+    }
+
+    // ==================== TOAST ====================
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ==================== INIT ====================
+    connectWebSocket();
+    loadCharts();
+    // Refresh charts every 5 minutes
+    setInterval(loadCharts, 300000);
+  </script>
+</body>
+</html>
