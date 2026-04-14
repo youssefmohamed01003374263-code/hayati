@@ -1,0 +1,44 @@
+# Docker Compose for Smart Irrigation System
+# Usage: docker-compose up -d
+#
+# This starts:
+#   1. Mosquitto MQTT Broker (ports 1883, 9001)
+#   2. Node.js Backend Server (port 3000)
+
+version: '3.8'
+
+services:
+  # MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: irrigation-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    restart: unless-stopped
+
+  # Backend Server
+  server:
+    build: ./server
+    container_name: irrigation-server
+    ports:
+      - "3000:3000"
+    environment:
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - PORT=3000
+      - DB_PATH=/app/data/irrigation.db
+    volumes:
+      - server-data:/app/data
+      - ./dashboard:/app/../dashboard
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
+  server-data:
